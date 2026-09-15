@@ -218,3 +218,6 @@ footer {
   main { grid-template-columns: 1fr; }
   body { padding: 12px 12px 20px; }
 }
+
+/* hidden 属性优先于任何 display（canvas/panel 切换） */
+[hidden] { display: none !important; }
