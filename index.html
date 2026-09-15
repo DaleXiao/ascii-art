@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Any image → ASCII art. Pure front-end, terminal-style.">
+<title>ascii-art</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="scanlines" aria-hidden="true"></div>
+
+<header>
+  <div class="prompt-line">
+    <span class="prompt">user@ascii:~$</span> <span class="cmd" data-i18n="appTitle">ascii-art</span><span class="cursor" aria-hidden="true">▊</span>
+  </div>
+  <div class="header-actions">
+    <button id="lang-btn" class="chip" type="button" data-i18n-title="langBtn">中</button>
+    <button id="theme-btn" class="chip" type="button" data-i18n-title="themeBtn">◐</button>
+  </div>
+</header>
+
+<section id="drop-zone" tabindex="0" role="button" aria-describedby="dz-hint">
+  <p class="dz-title"><span data-i18n="dropTitle">drag &amp; drop image here</span></p>
+  <p class="dz-hint" id="dz-hint" data-i18n="dropHint">click to choose · paste with Ctrl/⌘+V</p>
+  <input type="file" id="file-input" accept="image/*" hidden>
+</section>
+
+<main>
+  <section id="controls" class="panel" hidden>
+    <h2 data-i18n="panelControls">controls</h2>
+
+    <div class="ctl">
+      <label for="width-range" data-i18n="width">width</label>
+      <label class="chk"><input type="checkbox" id="auto-w" checked><span data-i18n="auto">auto</span></label>
+      <input type="range" id="width-range" min="40" max="200" step="1" value="120" disabled>
+      <output id="width-val">120</output>
+    </div>
+
+    <div class="ctl">
+      <label for="sat-range" data-i18n="saturation">saturation</label>
+      <input type="range" id="sat-range" min="0" max="3" step="0.1" value="1.6">
+      <output id="sat-val">1.6</output>
+    </div>
+
+    <div class="ctl">
+      <label for="bright-range" data-i18n="brightness">brightness</label>
+      <input type="range" id="bright-range" min="0.5" max="1.5" step="0.05" value="1">
+      <output id="bright-val">1.0</output>
+    </div>
+
+    <div class="ctl">
+      <label for="gamma-range" data-i18n="gamma">gamma</label>
+      <input type="range" id="gamma-range" min="0.5" max="2" step="0.05" value="1">
+      <output id="gamma-val">1.0</output>
+    </div>
+
+    <div class="ctl">
+      <label class="chk"><input type="checkbox" id="color-mode" checked><span data-i18n="colorMode">color mode</span></label>
+    </div>
+  </section>
+
+  <section id="output" class="panel">
+    <div class="output-bar">
+      <h2 data-i18n="panelOutput">output</h2>
+      <div class="actions">
+        <button id="download-btn" class="chip" type="button" data-i18n="download">download png</button>
+        <button id="copy-btn" class="chip" type="button" data-i18n="copy">copy txt</button>
+        <button id="new-btn" class="chip" type="button" data-i18n="newImage">new image</button>
+      </div>
+    </div>
+    <div id="art-wrap">
+      <p id="placeholder"><span data-i18n="placeholder">$ awaiting image…</span><span class="cursor" aria-hidden="true">▊</span></p>
+      <canvas id="art" hidden></canvas>
+    </div>
+    <div id="status" class="status-line" role="status"></div>
+  </section>
+</main>
+
+<footer data-i18n="footer">runs locally · your images never leave the browser</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
