@@ -18,6 +18,7 @@ html[data-theme="dark"] {
   --text-glow: 0 0 4px rgba(0, 255, 65, 0.5);
   --canvas-shadow: 0 0 14px rgba(0, 255, 65, 0.22);
   --scan-opacity: 1;
+  --scan-line: rgba(0, 255, 65, 0.055);
   --err: #ff5f56;
 }
 
@@ -33,6 +34,7 @@ html[data-theme="light"] {
   --text-glow: none;
   --canvas-shadow: 0 1px 5px rgba(42, 38, 32, 0.18);
   --scan-opacity: 0;
+  --scan-line: rgba(42, 38, 32, 0.04);
   --err: #a33324;
 }
 
@@ -61,8 +63,8 @@ body {
   opacity: var(--scan-opacity);
   background: repeating-linear-gradient(
     to bottom,
-    transparent 0px, transparent 2px,
-    rgba(0, 0, 0, 0.2) 3px, transparent 4px
+    var(--scan-line) 0px, var(--scan-line) 1px,
+    transparent 1px, transparent 3px
   );
 }
 
