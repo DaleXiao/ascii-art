@@ -1,0 +1,10 @@
+{
+  "name": "ascii-art",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Any image → ASCII art. Pure front-end, terminal-style.",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}
