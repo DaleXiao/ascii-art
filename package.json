@@ -5,6 +5,6 @@
   "type": "module",
   "description": "Any image → ASCII art. Pure front-end, terminal-style.",
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test"
   }
 }
