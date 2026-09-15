@@ -74,11 +74,17 @@ function showError(key) {
 // ---------- 转换管线（F-1/F-2） ----------
 
 function renderOnly() {
-  renderAscii(els.art, state.result, {
-    theme: state.theme,
-    colorMode: state.opts.colorMode,
-    fitWidth: Math.max(200, els.artWrap.clientWidth - 8),
-  });
+  try {
+    renderAscii(els.art, state.result, {
+      theme: state.theme,
+      colorMode: state.opts.colorMode,
+      fitWidth: Math.max(200, els.artWrap.clientWidth - 8),
+    });
+    return true;
+  } catch {
+    showError('errTooTall'); // 极端尺寸 canvas 溢出：报错而非静默白屏（T-719 必改 2）
+    return false;
+  }
 }
 
 function process() {
@@ -94,7 +100,7 @@ function process() {
   state.result = convertCells(rgba, W, H, {
     saturation: o.saturation, brightness: o.brightness, gamma: o.gamma, invert,
   });
-  renderOnly();
+  if (!renderOnly()) return; // 渲染失败已报错：不刷新输出/计时，保留错误状态行
   state.lastMs = Math.round(performance.now() - t0); // 取样+转换+渲染计时
   els.art.hidden = false;
   els.placeholder.hidden = true;
@@ -180,7 +186,7 @@ function bindControls() {
     applyLang();
   });
   els.downloadBtn.addEventListener('click', () => {
-    if (state.result) downloadPng(els.art);
+    if (state.result) downloadPng(els.art, 'ascii-art.png', () => showError('errDownload'));
   });
   els.copyBtn.addEventListener('click', async () => {
     if (!state.result) return;

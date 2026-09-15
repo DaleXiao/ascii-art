@@ -15,6 +15,9 @@ export const DEFAULTS = {
   invert: false,       // 深底单色模式用（亮→密）
 };
 
+/** H 上界：极端纵横比时垂直压缩（采样跳行）而非撑爆画布——canvas 高度硬限 65535，超限 getImageData 全 0 / toBlob null（T-719 复审必改 2） */
+export const MAX_ROWS = 2000;
+
 export const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 export const clamp01 = (v) => clamp(v, 0, 1);
 
@@ -64,7 +67,7 @@ export function computeGrid(imgW, imgH, width = 'auto', opts = {}) {
     : Math.round(Number(width));
   if (!Number.isFinite(W)) W = autoWidth(imgW, imgH, opts.variance ?? 0.5);
   W = Math.round(clamp(W, 40, 200));
-  const H = Math.max(1, Math.round(W * (imgH / imgW) * aspect));
+  const H = Math.round(clamp(W * (imgH / imgW) * aspect, 1, MAX_ROWS));
   return { W, H };
 }
 

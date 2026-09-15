@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   CHARS, DEFAULTS, clamp, clamp01, lumFromRgb, charForLum, gradeLum,
   percentileBounds, boostSaturation, clampHighlight, cellColor,
-  computeGrid, autoWidth, colorVarianceScore, convertCells, resultToTxt,
+  computeGrid, autoWidth, colorVarianceScore, convertCells, resultToTxt, MAX_ROWS,
 } from '../js/ascii-core.js';
 
 // ---------- ramp 与亮度→字符（F-1/F-6） ----------
@@ -108,6 +108,13 @@ test('computeGrid: 宽度钳制 40–200', () => {
   assert.equal(computeGrid(100, 100, 1000).W, 200);
   assert.equal(computeGrid(100, 100, 40).W, 40);
   assert.equal(computeGrid(100, 100, 200).W, 200);
+});
+
+test('computeGrid: H 上界 MAX_ROWS，极端纵横比垂直压缩而非撑爆画布（T-719 必改 2）', () => {
+  assert.deepEqual(computeGrid(100, 9000, 120), { W: 120, H: MAX_ROWS }); // 120×90×0.5=5400 → 钳 2000
+  assert.equal(computeGrid(1, 100000, 200).H, MAX_ROWS);
+  // 默认字号 14px（lh=16.8）下 MAX_ROWS 行必须在 canvas 高度硬限内（dpr=1）
+  assert.ok(MAX_ROWS * 14 * 1.2 + 40 < 65535, 'MAX_ROWS 在默认字号下超出画布硬限');
 });
 
 test('computeGrid: auto → 启发式；非法宽度回退 auto', () => {

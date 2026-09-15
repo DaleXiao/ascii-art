@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DICT, detectLang, t, loadLang, saveLang } from '../js/i18n.js';
+import { DICT, detectLang, t, loadLang, saveLang, applyI18n } from '../js/i18n.js';
 
 const memStorage = (init = {}) => {
   const m = { ...init };
@@ -70,4 +70,22 @@ test('saveLang: 写入 storage，可被 loadLang 读回', () => {
   saveLang('zh', s);
   assert.equal(s._m['ascii-lang'], 'zh');
   assert.equal(loadLang(s), 'zh');
+});
+
+// ---------- applyI18n: <html lang> 声明（T-719 必改 1：document 无 lang 属性，须写 documentElement） ----------
+
+test('applyI18n: 设置 documentElement lang 属性（zh→zh-CN / en→en）', () => {
+  const attrs = {};
+  const root = {
+    querySelectorAll: () => [],
+    documentElement: { setAttribute: (k, v) => { attrs[k] = v; } },
+  };
+  applyI18n(root, 'zh');
+  assert.equal(attrs.lang, 'zh-CN');
+  applyI18n(root, 'en');
+  assert.equal(attrs.lang, 'en');
+});
+
+test('applyI18n: root 无 documentElement（测试 stub）不报错', () => {
+  assert.doesNotThrow(() => applyI18n({ querySelectorAll: () => [] }, 'zh'));
 });

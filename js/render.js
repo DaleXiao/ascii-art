@@ -13,6 +13,9 @@ export const THEMES = {
 };
 export const COLOR_BG = '#ffffff';
 
+// 浏览器 canvas 边长硬限（Chrome 实测 65535 ✓ / 65536 ✗：超限 getImageData 全 0、toBlob null → 静默白屏）
+export const MAX_CANVAS_SIDE = 65535;
+
 /** 画布单元格度量：adv=字符步进宽，lh=行高（adv:lh ≈ 1:2，与采样纵横比 0.5 一致） */
 function metrics(ctx, fontSize) {
   ctx.font = `bold ${fontSize}px ${FONT_STACK}`;
@@ -40,11 +43,21 @@ export function renderAscii(canvas, result, opts = {}) {
     const probe = metrics(ctx, 100).adv / 100; // 该字体的 advance 比例
     fontSize = Math.max(3, Math.min(28, Math.floor((fitWidth - pad * 2) / (result.W * probe))));
   }
-  const { adv, lh } = metrics(ctx, fontSize);
 
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  // 极端纵横比守卫（T-719 必改 2）：cssH 超画布硬限时降 fontSize（lh=1.2×fontSize）；
+  // 降到 1px 仍放不下则 throw，由 UI 报错，不静默白屏
+  const maxCssSide = MAX_CANVAS_SIDE / dpr;
+  if (result.H > 0 && fontSize * 1.2 > (maxCssSide - pad * 2) / result.H) {
+    fontSize = Math.max(1, Math.floor((maxCssSide - pad * 2) / result.H / 1.2));
+  }
+  const { adv, lh } = metrics(ctx, fontSize);
+
   const cssW = Math.ceil(result.W * adv + pad * 2);
   const cssH = Math.ceil(result.H * lh + pad * 2);
+  if (cssW * dpr > MAX_CANVAS_SIDE || cssH * dpr > MAX_CANVAS_SIDE) {
+    throw new Error(`canvas overflow: ${cssW}x${cssH} css px @dpr${dpr} > ${MAX_CANVAS_SIDE}`);
+  }
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   canvas.style.width = `${cssW}px`;
@@ -100,10 +113,10 @@ export function previewSample(source, imgW, imgH, size = 64) {
   return sampleImage(source, Math.max(1, Math.round(imgW * scale)), Math.max(1, Math.round(imgH * scale)));
 }
 
-/** PNG 下载 */
-export function downloadPng(canvas, filename = 'ascii-art.png') {
+/** PNG 下载；toBlob 失败（画布超限等）走 onFail 回调，不静默吞掉（T-719 必改 2） */
+export function downloadPng(canvas, filename = 'ascii-art.png', onFail) {
   canvas.toBlob((blob) => {
-    if (!blob) return;
+    if (!blob) { onFail?.(); return; }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -115,7 +128,7 @@ export function downloadPng(canvas, filename = 'ascii-art.png') {
   }, 'image/png');
 }
 
-/** TXT 复制（clipboard API + execCommand 回退）；恒用经典白底序（亮→稀疏） */
+/** TXT 复制（clipboard API + execCommand 回退）；内容 = 屏幕实际渲染的字符序（单色+深底含 invert，所见即所得） */
 export async function copyTxt(result) {
   const txt = resultToTxt(result);
   try {

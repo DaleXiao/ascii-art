@@ -24,6 +24,8 @@ export const DICT = {
     placeholder: '$ awaiting image…',
     errLoad: 'failed to load image',
     errType: 'unsupported file type',
+    errTooTall: 'image too tall to render',
+    errDownload: 'download failed',
     footer: 'runs locally · your images never leave the browser',
     themeBtn: 'switch theme',
     langBtn: '切换中文',
@@ -50,6 +52,8 @@ export const DICT = {
     placeholder: '$ 等待图片输入……',
     errLoad: '图片加载失败',
     errType: '不支持的文件类型',
+    errTooTall: '图片过长，无法渲染',
+    errDownload: '下载失败',
     footer: '纯本地运行 · 图片不出浏览器',
     themeBtn: '切换主题',
     langBtn: 'Switch to English',
@@ -100,5 +104,6 @@ export function applyI18n(root, lang) {
   for (const el of root.querySelectorAll('[data-i18n-placeholder]')) {
     el.placeholder = t(lang, el.dataset.i18nPlaceholder);
   }
-  root.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  // <html lang>：document 本身没有 lang 属性（旧写法只造普通 JS 属性，屏幕阅读器/翻译判定拿不到），规范写法是 documentElement
+  root.documentElement?.setAttribute('lang', lang === 'zh' ? 'zh-CN' : 'en');
 }
