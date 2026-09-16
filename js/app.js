@@ -47,6 +47,7 @@ function applyTheme() {
 
 function applyLang() {
   applyI18n(document, state.lang);
+  document.title = t(state.lang, 'seoTitle'); // SPEC-423：title 跟随语言（静态 title 供无 JS 爬虫）
   saveLang(state.lang);
   els.langBtn.textContent = state.lang === 'en' ? '中' : 'EN';
   refreshStatus();
