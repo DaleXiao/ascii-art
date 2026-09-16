@@ -1,5 +1,5 @@
 // render.js — canvas 字符渲染 + PNG/TXT 输出 + 浏览器侧取样（F-2，DOM 侧，不进 node 单测）
-import { resultToTxt } from './ascii-core.js';
+import { resultToTxt } from './ascii-core.js?v=424';
 
 // 系统等宽字体栈（零外链，F-5）
 export const FONT_STACK = '"DejaVu Sans Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace';

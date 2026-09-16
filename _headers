@@ -1,0 +1,4 @@
+# CF Pages 响应头（SPEC-424）：全站协商缓存，根治 HTML/CSS/JS 部署版本偏斜
+# no-cache = 每次带 etag 重验证，未变则 304（站仅 7 资源，成本可忽略）
+/*
+  Cache-Control: no-cache

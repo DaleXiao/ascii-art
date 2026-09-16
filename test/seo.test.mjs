@@ -93,8 +93,25 @@ test('seo: og-image.png 为 1200×630 PNG（IHDR 字节校验）', () => {
   assert.equal(buf.readUInt32BE(20), 630);
 });
 
-test('seo: 运行期资源仍零外链（css/js/png 引用全相对）', () => {
-  const refs = [...html.matchAll(/(?:src|href)="([^"]+\.(?:css|js|png))"/g)].map((m) => m[1]);
+test('seo: 运行期资源仍零外链（css/js/png 引用全相对，兼容 ?v= 版本串）', () => {
+  const refs = [...html.matchAll(/(?:src|href)="([^"]+\.(?:css|js|png)(?:\?[^"]*)?)"/g)].map((m) => m[1]);
   assert.ok(refs.length >= 3, '至少 favicon/stylesheet/app.js');
   for (const u of refs) assert.ok(!/^https?:/.test(u), `外链资源: ${u}`);
+});
+
+test('cache: 资源 URL 版本化（SPEC-424 偏斜防复发）', () => {
+  assert.ok(html.includes('href="css/style.css?v='), 'stylesheet 带版本号');
+  assert.ok(html.includes('src="js/app.js?v='), 'app.js 带版本号');
+  const appSrc = readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+  for (const m of ['./ascii-core.js', './render.js', './i18n.js', './input.js']) {
+    assert.ok(appSrc.includes(`from '${m}?v=`), `app.js import ${m} 带版本号`);
+  }
+  const renderSrc = readFileSync(path.join(ROOT, 'js/render.js'), 'utf8');
+  assert.ok(renderSrc.includes("from './ascii-core.js?v="), 'render.js import 带版本号');
+});
+
+test('cache: _headers 全站 no-cache（CF Pages 偏斜根修）', () => {
+  const headers = readFileSync(path.join(ROOT, '_headers'), 'utf8');
+  assert.match(headers, /^\/\*/m);
+  assert.match(headers, /Cache-Control:\s*no-cache/);
 });
