@@ -1,8 +1,9 @@
 // app.js — UI 装配：主题 / 语言 / 控件 / 转换管线（F-2..F-5 接线）
-import { computeGrid, convertCells, colorVarianceScore } from './ascii-core.js';
-import { renderAscii, sampleImage, previewSample, downloadPng, copyTxt, THEMES } from './render.js';
-import { t, loadLang, saveLang, applyI18n } from './i18n.js';
-import { attachInputs } from './input.js';
+// ?v=424：资源版本化防缓存偏斜（SPEC-424，老用户毒缓存 = 不同 URL = cache miss）
+import { computeGrid, convertCells, colorVarianceScore } from './ascii-core.js?v=424';
+import { renderAscii, sampleImage, previewSample, downloadPng, copyTxt, THEMES } from './render.js?v=424';
+import { t, loadLang, saveLang, applyI18n } from './i18n.js?v=424';
+import { attachInputs } from './input.js?v=424';
 
 const THEME_ID = ['ascii', 'theme'].join('-'); // 动态拼接：防写入管线对 KEY=字面量 形态打掩
 
