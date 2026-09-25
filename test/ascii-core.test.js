@@ -6,7 +6,7 @@ import {
   computeGrid, autoWidth, colorVarianceScore, convertCells, resultToTxt, MAX_ROWS,
 } from '../js/ascii-core.js';
 
-// ---------- ramp 与亮度→字符（F-1/F-6） ----------
+// ---------- Ramp and luminance → character (F-1/F-6) ----------
 
 test('CHARS ramp: dense(dark) → sparse(bright), 10 chars', () => {
   assert.equal(CHARS, '@%#*+=-:. ');
@@ -14,15 +14,15 @@ test('CHARS ramp: dense(dark) → sparse(bright), 10 chars', () => {
 });
 
 test('charForLum boundaries', () => {
-  assert.equal(charForLum(0), '@');       // 最暗 → 最密
-  assert.equal(charForLum(1), ' ');       // 最亮 → 空格
+  assert.equal(charForLum(0), '@');       // darkest → densest
+  assert.equal(charForLum(1), ' ');       // brightest → space
   assert.equal(charForLum(0.999), ' ');
   assert.equal(charForLum(0.9), ' ');
   assert.equal(charForLum(0.85), '.');    // floor(8.5)=8
   assert.equal(charForLum(0.5), '=');     // floor(5)=5
   assert.equal(charForLum(0.1), '%');     // floor(1)=1
   assert.equal(charForLum(0.09), '@');
-  assert.equal(charForLum(-0.5), '@');    // 越界钳制
+  assert.equal(charForLum(-0.5), '@');    // out-of-range clamped
   assert.equal(charForLum(1.5), ' ');
 });
 
@@ -37,9 +37,9 @@ test('lumFromRgb weights 0.299/0.587/0.114', () => {
 test('gradeLum: brightness then gamma, clamped', () => {
   assert.ok(Math.abs(gradeLum(0.5, 1, 2) - 0.25) < 1e-12);
   assert.equal(gradeLum(0.5, 2, 1), 1);            // 0.5*2=1
-  assert.equal(gradeLum(0.8, 2, 1), 1);            // 越界钳 1
+  assert.equal(gradeLum(0.8, 2, 1), 1);            // out-of-range clamped to 1
   assert.ok(Math.abs(gradeLum(0.5, 1, 0.5) - Math.SQRT1_2) < 1e-12);
-  assert.equal(gradeLum(0.5, 1, 1), 0.5);          // 恒等
+  assert.equal(gradeLum(0.5, 1, 1), 0.5);          // identity
 });
 
 test('percentileBounds: 2/98 percentiles + degenerate fallback', () => {
@@ -49,41 +49,41 @@ test('percentileBounds: 2/98 percentiles + degenerate fallback', () => {
   assert.equal(hi, lums[Math.floor(256 * 0.98)]);   // index 250
   assert.equal(lo, 5);
   assert.equal(hi, 250);
-  // 全同亮度 → 退化回退全域
+  // uniform luminance → degenerate, falls back to the full range
   const flat = new Float64Array(100).fill(128);
   assert.deepEqual(percentileBounds(flat), { lo: 0, hi: 255 });
 });
 
-// ---------- 饱和增强 / 亮部钳制（F-1/F-6 数值） ----------
+// ---------- Saturation boost / highlight clamp (F-1/F-6 values) ----------
 
 const close = (a, b, eps = 1e-9) => Math.abs(a - b) < eps;
 
 test('boostSaturation: gray identity, amount=1 identity, more spread', () => {
-  // 浮点累加有 ~1e-14 噪声，用容差断言
+  // float accumulation has ~1e-14 noise; assert with a tolerance
   assert.ok(boostSaturation(128, 128, 128, 2.5).every((v) => close(v, 128)));
   const id = boostSaturation(200, 100, 50, 1);
   assert.ok(close(id[0], 200) && close(id[1], 100) && close(id[2], 50));
   const [r2] = boostSaturation(200, 100, 50, 2);
   const [r1] = boostSaturation(200, 100, 50, 1.6);
-  assert.ok(r2 > r1 && r1 > 200);                   // 围绕亮度外推
+  assert.ok(r2 > r1 && r1 > 200);                   // extrapolated around luminance
 });
 
-test('clampHighlight: lum>190 → k=190/lum 等比压暗', () => {
+test('clampHighlight: lum>190 → k=190/lum proportional darkening', () => {
   const [r, g, b] = clampHighlight(255, 255, 255, 190);
   assert.ok(Math.abs(r - 190) < 1e-9 && Math.abs(g - 190) < 1e-9);
-  assert.deepEqual(clampHighlight(100, 100, 100, 190), [100, 100, 100]); // 未超不动
-  // 保持色相：等比
+  assert.deepEqual(clampHighlight(100, 100, 100, 190), [100, 100, 100]); // below the limit, unchanged
+  // hue preserved: proportional
   const [rr, gg, bb] = clampHighlight(240, 120, 60, 190);
   assert.ok(Math.abs(rr / gg - 2) < 1e-9 && Math.abs(gg / bb - 2) < 1e-9);
 });
 
-test('cellColor: 饱和红仍红 / 白钳到 190 / 灰不动 / sat=0 → 灰度', () => {
+test('cellColor: saturated red stays red / white clamped to 190 / gray unchanged / sat=0 → grayscale', () => {
   assert.deepEqual(cellColor(255, 0, 0, { saturation: 1.6 }), { r: 255, g: 0, b: 0 });
   assert.deepEqual(cellColor(255, 255, 255), { r: 190, g: 190, b: 190 });
   assert.deepEqual(cellColor(128, 128, 128), { r: 128, g: 128, b: 128 });
   const lum = Math.round(lumFromRgb(200, 100, 100));
   assert.deepEqual(cellColor(200, 100, 100, { saturation: 0 }), { r: lum, g: lum, b: lum });
-  // spike 同款参数：200,100,100 @ sat1.6 → (242,82,82)
+  // same parameters as the spike: 200,100,100 @ sat1.6 → (242,82,82)
   assert.deepEqual(cellColor(200, 100, 100, { saturation: 1.6 }), { r: 242, g: 82, b: 82 });
 });
 
@@ -94,53 +94,53 @@ test('clamp/clamp01', () => {
   assert.equal(clamp01(1.2), 1);
 });
 
-// ---------- 网格 / 纵横比（F-1/F-6） ----------
+// ---------- Grid / aspect ratio (F-1/F-6) ----------
 
-test('computeGrid: 显式宽度 + 纵横比 0.5 补偿', () => {
+test('computeGrid: explicit width + 0.5 aspect-ratio compensation', () => {
   assert.deepEqual(computeGrid(1000, 500, 120), { W: 120, H: 30 }); // H=120×(1/2)×0.5
   assert.deepEqual(computeGrid(1000, 1000, 120), { W: 120, H: 60 });
-  assert.deepEqual(computeGrid(500, 1000, 100), { W: 100, H: 100 }); // 竖图
+  assert.deepEqual(computeGrid(500, 1000, 100), { W: 100, H: 100 }); // portrait image
   assert.deepEqual(computeGrid(1000, 1000, 101), { W: 101, H: 51 }); // round(50.5)
 });
 
-test('computeGrid: 宽度钳制 40–200', () => {
+test('computeGrid: width clamped to 40–200', () => {
   assert.equal(computeGrid(100, 100, 10).W, 40);
   assert.equal(computeGrid(100, 100, 1000).W, 200);
   assert.equal(computeGrid(100, 100, 40).W, 40);
   assert.equal(computeGrid(100, 100, 200).W, 200);
 });
 
-test('computeGrid: H 上界 MAX_ROWS，极端纵横比垂直压缩而非撑爆画布（T-719 必改 2）', () => {
-  assert.deepEqual(computeGrid(100, 9000, 120), { W: 120, H: MAX_ROWS }); // 120×90×0.5=5400 → 钳 2000
+test('computeGrid: H upper bound MAX_ROWS; extreme aspect ratios compress vertically instead of blowing up the canvas (T-719 must-fix 2)', () => {
+  assert.deepEqual(computeGrid(100, 9000, 120), { W: 120, H: MAX_ROWS }); // 120×90×0.5=5400 → clamped to 2000
   assert.equal(computeGrid(1, 100000, 200).H, MAX_ROWS);
-  // 默认字号 14px（lh=16.8）下 MAX_ROWS 行必须在 canvas 高度硬限内（dpr=1）
-  assert.ok(MAX_ROWS * 14 * 1.2 + 40 < 65535, 'MAX_ROWS 在默认字号下超出画布硬限');
+  // at the default 14px font size (lh=16.8), MAX_ROWS rows must fit within the canvas height hard limit (dpr=1)
+  assert.ok(MAX_ROWS * 14 * 1.2 + 40 < 65535, 'MAX_ROWS exceeds the canvas hard limit at the default font size');
 });
 
-test('computeGrid: auto → 启发式；非法宽度回退 auto', () => {
+test('computeGrid: auto → heuristic; invalid width falls back to auto', () => {
   const g = computeGrid(100, 100, 'auto', { variance: 0 });
   assert.equal(g.W, 60);
   assert.equal(g.H, 30);
   assert.equal(computeGrid(100, 100, 'abc', { variance: 0 }).W, 60); // NaN → auto
-  // H 至少 1（极端宽图）
+  // H is at least 1 (extremely wide image)
   assert.equal(computeGrid(10000, 1, 200).H, 1);
 });
 
-test('autoWidth: 边界 60/160 + 单调 + 全域 [60,160]', () => {
-  assert.equal(autoWidth(100, 100, 0), 60);       // 小图平坦 → 最窄
-  assert.equal(autoWidth(4000, 4000, 1), 160);    // 大图复杂 → 最宽
+test('autoWidth: bounds 60/160 + monotonic + full range [60,160]', () => {
+  assert.equal(autoWidth(100, 100, 0), 60);       // small flat image → narrowest
+  assert.equal(autoWidth(4000, 4000, 1), 160);    // large complex image → widest
   assert.equal(autoWidth(1000, 1000, 0.5), 105);  // 60+0.4152*60+20
-  assert.ok(autoWidth(800, 800, 0.5) < autoWidth(1600, 1600, 0.5));  // 尺寸单调
-  assert.ok(autoWidth(1000, 1000, 0.2) < autoWidth(1000, 1000, 0.9)); // 方差单调
+  assert.ok(autoWidth(800, 800, 0.5) < autoWidth(1600, 1600, 0.5));  // size-monotonic
+  assert.ok(autoWidth(1000, 1000, 0.2) < autoWidth(1000, 1000, 0.9)); // variance-monotonic
   for (const [w, h, v] of [[10, 10, 0], [500, 2000, 0.3], [8000, 30, 1], [1, 1, 0.5]]) {
     const out = autoWidth(w, h, v);
     assert.ok(out >= 60 && out <= 160, `autoWidth(${w},${h},${v})=${out}`);
   }
 });
 
-test('colorVarianceScore: 平坦→0，强对比→高，全域 [0,1]', () => {
-  const flat = new Uint8Array(4 * 100).fill(128); // 纯灰
-  assert.ok(colorVarianceScore(flat) < 1e-6); // 浮点累加噪声 ≈ 0
+test('colorVarianceScore: flat → 0, strong contrast → high, full range [0,1]', () => {
+  const flat = new Uint8Array(4 * 100).fill(128); // pure gray
+  assert.ok(colorVarianceScore(flat) < 1e-6); // float accumulation noise ≈ 0
   const bw = new Uint8Array(4 * 100);
   for (let i = 0; i < 100; i++) {
     const v = i % 2 ? 255 : 0;
@@ -154,9 +154,9 @@ test('colorVarianceScore: 平坦→0，强对比→高，全域 [0,1]', () => {
   assert.equal(colorVarianceScore(new Uint8Array(0)), 0);
 });
 
-// ---------- 主管线（F-1） ----------
+// ---------- Main pipeline (F-1) ----------
 
-test('convertCells: 黑白 2×1 → "@ " + 颜色（黑 0 / 白钳 190）', () => {
+test('convertCells: black+white 2×1 → "@ " + colors (black 0 / white clamped to 190)', () => {
   const rgba = new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]);
   const r = convertCells(rgba, 2, 1, { autoContrast: false });
   assert.deepEqual(r.chars, ['@ ']);
@@ -165,41 +165,41 @@ test('convertCells: 黑白 2×1 → "@ " + 颜色（黑 0 / 白钳 190）', () =
   assert.equal(resultToTxt(r), '@ \n');
 });
 
-test('convertCells: invert 翻转映射（深底单色用）', () => {
+test('convertCells: invert flips the mapping (for dark-background monochrome)', () => {
   const rgba = new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]);
   const r = convertCells(rgba, 2, 1, { autoContrast: false, invert: true });
   assert.deepEqual(r.chars, [' @']);
 });
 
-test('convertCells: autoContrast 拉伸 + 纯度（不改输入）', () => {
-  // 窄带亮度 100/150 → 拉伸后 100→暗端 '@'区，150→亮端
+test('convertCells: autoContrast stretch + purity (does not mutate input)', () => {
+  // narrow luminance band 100/150 → after stretching, 100 lands in the dark '@' region, 150 at the bright end
   const rgba = new Uint8Array(4 * 4);
   for (let i = 0; i < 2; i++) rgba.set([100, 100, 100, 255], i * 4);
   for (let i = 2; i < 4; i++) rgba.set([150, 150, 150, 255], i * 4);
   const before = Uint8Array.from(rgba);
   const r = convertCells(rgba, 2, 2, { autoContrast: true });
-  assert.deepEqual(Array.from(rgba), Array.from(before)); // 输入未被改动
+  assert.deepEqual(Array.from(rgba), Array.from(before)); // input not mutated
   assert.equal(r.lo, 100); assert.equal(r.hi, 150);
   assert.equal(r.chars[0], '@@'); // lo → l=0
-  assert.equal(r.chars[1], '  '); // hi → l=1 → 空格
+  assert.equal(r.chars[1], '  '); // hi → l=1 → space
 });
 
-test('convertCells: brightness/gamma/saturation 贯通管线', () => {
+test('convertCells: brightness/gamma/saturation flow through the pipeline', () => {
   const rgba = new Uint8Array(2 * 2 * 4);
   rgba.set([200, 100, 100, 255], 0);
   rgba.set([200, 100, 100, 255], 4);
   rgba.set([0, 0, 0, 255], 8);
   rgba.set([0, 0, 0, 255], 12);
   const r = convertCells(rgba, 2, 2, { autoContrast: false, saturation: 1.6, brightness: 1, gamma: 1 });
-  assert.deepEqual(Array.from(r.colors.slice(0, 3)), [242, 82, 82]); // 同 cellColor
+  assert.deepEqual(Array.from(r.colors.slice(0, 3)), [242, 82, 82]); // same as cellColor
   const dark = convertCells(rgba, 2, 2, { autoContrast: false, brightness: 0.5, gamma: 2 });
-  // 亮度压暗 → 字符更密（更小 l）
+  // darkened luminance → denser characters (smaller l)
   assert.ok(CHARS.indexOf(dark.chars[0][0]) <= CHARS.indexOf(r.chars[0][0]));
 });
 
-// ---------- 验收性能线（1000×1000 输入、W=120 核心侧 <1s） ----------
+// ---------- Acceptance performance line (1000×1000 input, W=120, core side <1s) ----------
 
-test('perf: 1M 像素方差评分 + 120×60 转换 < 1s', () => {
+test('perf: 1M-pixel variance score + 120×60 conversion < 1s', () => {
   const big = new Uint8Array(1000 * 1000 * 4);
   for (let i = 0; i < 1000 * 1000; i++) {
     big[i * 4] = (i * 7919) % 256;
