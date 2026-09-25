@@ -1,5 +1,5 @@
-// i18n.js — zh/en 全量文案字典 + 语言检测/持久化（F-4）
-// 无 DOM 依赖（localStorage/navigator 均带 guard），node 可单测
+// i18n.js — full zh/en copy dictionary + language detection/persistence (F-4)
+// No DOM dependencies (localStorage/navigator are both guarded), unit-testable in node
 
 export const DICT = {
   en: {
@@ -64,13 +64,13 @@ export const DICT = {
   },
 };
 
-/** navigator.language → 'zh' | 'en'（zh-* 前缀 → zh，其余 → en） */
+/** navigator.language → 'zh' | 'en' (zh-* prefix → zh, everything else → en) */
 export function detectLang(nav) {
   const language = (nav ?? (typeof navigator !== 'undefined' ? navigator : null))?.language;
   return String(language || 'en').toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
 
-/** 取词：缺 key 回退 en，再缺回退 key 本身；vars 做 {name} 插值 */
+/** Look up copy: missing key falls back to en, then to the key itself; vars interpolate {name} placeholders */
 export function t(lang, key, vars) {
   const dict = DICT[lang] ?? DICT.en;
   let s = dict[key] ?? DICT.en[key] ?? key;
@@ -80,14 +80,14 @@ export function t(lang, key, vars) {
   return s;
 }
 
-const STORAGE_ID = ['ascii', 'lang'].join('-'); // 动态拼接：防写入管线对 KEY=字面量 形态打掩
+const STORAGE_ID = ['ascii', 'lang'].join('-'); // built dynamically: prevents the write pipeline from masking the KEY=literal shape
 
-/** localStorage 优先，无记录 → navigator.language；storage 可注入（测试用） */
+/** localStorage first; no record → navigator.language; storage is injectable (for tests) */
 export function loadLang(storage) {
   try {
     const v = (storage ?? globalThis.localStorage)?.getItem(STORAGE_ID);
     if (v === 'zh' || v === 'en') return v;
-  } catch { /* 隐私模式等 */ }
+  } catch { /* private browsing mode, etc. */ }
   return detectLang();
 }
 
@@ -97,7 +97,7 @@ export function saveLang(lang, storage) {
   } catch { /* noop */ }
 }
 
-/** 把 root 下所有 [data-i18n] 元素的 textContent 换成对应文案 */
+/** Replace the textContent of every [data-i18n] element under root with the matching copy */
 export function applyI18n(root, lang) {
   for (const el of root.querySelectorAll('[data-i18n]')) {
     el.textContent = t(lang, el.dataset.i18n);
@@ -108,6 +108,6 @@ export function applyI18n(root, lang) {
   for (const el of root.querySelectorAll('[data-i18n-placeholder]')) {
     el.placeholder = t(lang, el.dataset.i18nPlaceholder);
   }
-  // <html lang>：document 本身没有 lang 属性（旧写法只造普通 JS 属性，屏幕阅读器/翻译判定拿不到），规范写法是 documentElement
+  // <html lang>: document itself has no lang property (the old approach only created a plain JS property that screen readers / translation detection could not see); the spec-compliant way is documentElement
   root.documentElement?.setAttribute('lang', lang === 'zh' ? 'zh-CN' : 'en');
 }

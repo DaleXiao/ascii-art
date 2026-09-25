@@ -1,38 +1,36 @@
 # ascii-art
 
-任意图 → ASCII 字符画。纯前端 terminal 风格 web 应用：图片不出浏览器，零上传、零后端、零外链。
-
-Any image → ASCII art. Pure front-end, terminal-style. Your images never leave the browser — no uploads, no backend, no external requests at runtime.
+Any image → ASCII art. Pure front-end, terminal-style web app: your images never leave the browser — no uploads, no backend, no external requests at runtime.
 
 ## Features
 
-- **转换核心** — canvas 降采样 + 亮度→字符 ramp（`@%#*+=-:. `）+ 饱和度增强 + 亮部钳制，自动宽度启发式
-- **渲染输出** — 彩色（原图取样色）/ 单色（主题色）两种模式，PNG 下载 + TXT 复制
-- **Terminal UI** — dark（磷光绿 + 扫描线）/ light（纸白墨色）主题，跟随系统 + 手动切换 + 持久化
-- **i18n** — 中文 / English 切换，默认跟随浏览器语言
-- **输入** — 拖拽 / 文件选择 / 剪贴板粘贴
+- **Conversion core** — canvas downsampling + luminance→character ramp (`@%#*+=-:. `) + saturation boost + highlight clamp, auto-width heuristic
+- **Render output** — color (sampled from the source image) / monochrome (theme ink) modes, PNG download + TXT copy
+- **Terminal UI** — dark (phosphor green + scanlines) / light (paper-white ink) themes, follows the system + manual toggle + persistence
+- **i18n** — Chinese / English toggle, defaults to the browser language
+- **Input** — drag & drop / file picker / clipboard paste
 
 ## Develop
 
-无 build step，vanilla JS ESM。
+No build step, vanilla JS ESM.
 
 ```bash
-python3 -m http.server 8080   # 打开 http://localhost:8080
+python3 -m http.server 8080   # open http://localhost:8080
 npm test                      # node --test
 ```
 
 ## Layout
 
 ```
-index.html      入口
-css/style.css   terminal 主题样式
-js/ascii-core.js  纯函数转换核心（无 DOM 依赖，可单测）
-js/render.js      canvas 渲染 + PNG/TXT 输出
-js/i18n.js        zh/en 文案字典
-js/input.js       拖拽/选择/粘贴
-js/app.js         UI 装配
-test/             node --test 单测
-docs/screenshots/ 界面截图
+index.html      entry point
+css/style.css   terminal theme styles
+js/ascii-core.js  pure-function conversion core (no DOM deps, unit-testable)
+js/render.js      canvas rendering + PNG/TXT output
+js/i18n.js        zh/en copy dictionaries
+js/input.js       drag & drop / picker / paste
+js/app.js         UI assembly
+test/             node --test unit tests
+docs/screenshots/ UI screenshots
 ```
 
 Spec: SPEC-420 (issue #1) · Task: T-719

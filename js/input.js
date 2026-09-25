@@ -1,10 +1,10 @@
-// input.js — 输入三件套：拖拽 / 文件选择 / 剪贴板粘贴（F-5）
-// 纯事件装配，无业务逻辑；文件经 onFile 回调交给 app.js
+// input.js — Input trio: drag & drop / file picker / clipboard paste (F-5)
+// Pure event wiring, no business logic; files are handed to app.js via the onFile callback
 
 /**
  * @param {{zone:HTMLElement, input:HTMLInputElement}} targets
- * @param {(file:File)=>void} onFile 合法图片文件回调
- * @param {(errKey:string)=>void} onError 错误文案 key 回调（i18n）
+ * @param {(file:File)=>void} onFile callback for valid image files
+ * @param {(errKey:string)=>void} onError callback for error copy keys (i18n)
  */
 export function attachInputs({ zone, input, onFile, onError }) {
   const accept = (file) => {
@@ -16,7 +16,7 @@ export function attachInputs({ zone, input, onFile, onError }) {
     onFile(file);
   };
 
-  // 点击 / 键盘（zone 有 tabindex+role=button）→ 文件选择
+  // Click / keyboard (zone has tabindex+role=button) → file picker
   zone.addEventListener('click', () => input.click());
   zone.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -26,10 +26,10 @@ export function attachInputs({ zone, input, onFile, onError }) {
   });
   input.addEventListener('change', () => {
     accept(input.files && input.files[0]);
-    input.value = ''; // 允许重复选同一文件
+    input.value = ''; // allow re-selecting the same file
   });
 
-  // 拖拽：zone 高亮 + drop 加载
+  // Drag & drop: zone highlight + drop loading
   for (const ev of ['dragenter', 'dragover']) {
     zone.addEventListener(ev, (e) => {
       e.preventDefault();
@@ -43,11 +43,11 @@ export function attachInputs({ zone, input, onFile, onError }) {
     });
   }
   zone.addEventListener('drop', (e) => accept(e.dataTransfer?.files?.[0]));
-  // zone 之外拖入：阻止浏览器直接打开图片文件
+  // Drops outside the zone: prevent the browser from opening image files directly
   window.addEventListener('dragover', (e) => e.preventDefault());
   window.addEventListener('drop', (e) => e.preventDefault());
 
-  // 剪贴板粘贴（全页面监听，Ctrl/⌘+V）
+  // Clipboard paste (whole-page listener, Ctrl/⌘+V)
   window.addEventListener('paste', (e) => {
     const items = e.clipboardData?.items;
     if (!items) return;
