@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// make-og-image.mjs — 生成 og-image.png（1200×630，terminal 风分享图）· SPEC-423
-// 用法: node tools/make-og-image.mjs [src.jpg] [out.png]   默认 tmp-shots/parrot.jpg → og-image.png
-// 依赖: sharp（workspace node_modules）+ js/ascii-core.js 纯函数（自家引擎 dogfood）
-// 说明: 素材图不入库（tmp-shots/ 在 .gitignore），产物 og-image.png 入库；本脚本保可复现
+// make-og-image.mjs — generates og-image.png (1200×630, terminal-style share image) · SPEC-423
+// Usage: node tools/make-og-image.mjs [src.jpg] [out.png]   defaults tmp-shots/parrot.jpg → og-image.png
+// Dependencies: sharp (workspace node_modules) + js/ascii-core.js pure functions (dogfooding our own engine)
+// Notes: the source photo is not committed (tmp-shots/ is gitignored); the output og-image.png is committed; this script keeps it reproducible
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -12,23 +12,23 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const src = process.argv[2] ? path.resolve(process.argv[2]) : path.join(ROOT, 'tmp-shots/parrot.jpg');
 const out = process.argv[3] ? path.resolve(process.argv[3]) : path.join(ROOT, 'og-image.png');
 
-// ---- 布局常量（1200×630，dark 主题配色同 css 变量） ----
+// ---- Layout constants (1200×630, dark theme colors matching the CSS variables) ----
 const CW = 1200, CH = 630;
 const BG = '#0a0a0a';
 const GREEN = '#00ff41';
 const DIM = '#3f8f52';
 const FONT = "'DejaVu Sans Mono', monospace";
-const W = 84;                  // 字符网格列数
-const F_ART = 10;              // art 字号
-const CHAR_W = F_ART * 0.602;  // DejaVu Sans Mono advance ≈ 0.602em（仅注释用途）
-const LINE_H = F_ART * 1.24;   // 行高 ≈ 2× 字宽（经典 1:2 字符单元格纵横比）
+const W = 84;                  // character grid column count
+const F_ART = 10;              // art font size
+const CHAR_W = F_ART * 0.602;  // DejaVu Sans Mono advance ≈ 0.602em (comment reference only)
+const LINE_H = F_ART * 1.24;   // line height ≈ 2× char width (classic 1:2 character cell aspect ratio)
 const ART_X = 48;
-const ART_Y0 = 92;             // 首行 baseline
+const ART_Y0 = 92;             // first line baseline
 
-// ---- 源图 → 每格一像素 RGBA ----
+// ---- Source image → RGBA with one pixel per cell ----
 const meta = await sharp(src).metadata();
 const srcAspect = (meta.height || 1) / (meta.width || 1);
-const H = Math.max(1, Math.round(W * srcAspect * 0.5)); // 与 DEFAULTS.aspect=0.5 同语义
+const H = Math.max(1, Math.round(W * srcAspect * 0.5)); // same semantics as DEFAULTS.aspect=0.5
 const { data } = await sharp(src)
   .resize(W, H, { fit: 'fill' })
   .removeAlpha()
@@ -36,12 +36,12 @@ const { data } = await sharp(src)
   .raw()
   .toBuffer({ resolveWithObject: true });
 
-// ---- ascii-core 主管线（深底：invert 亮→密；饱和度增强出鲜艳效果） ----
+// ---- ascii-core main pipeline (dark background: invert bright → dense; saturation boost for vivid results) ----
 const res = convertCells(new Uint8Array(data), W, H, {
   invert: true, saturation: 1.8, brightness: 1.0, gamma: 1.0, autoContrast: true,
 });
 
-// ---- SVG 组装（同色 run 合并 tspan，压缩体积） ----
+// ---- SVG assembly (merge same-color runs into tspan to reduce size) ----
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const hex = (r, g, b) => '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
 
