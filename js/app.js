@@ -1,11 +1,11 @@
-// app.js — UI 装配：主题 / 语言 / 控件 / 转换管线（F-2..F-5 接线）
-// ?v=424：资源版本化防缓存偏斜（SPEC-424，老用户毒缓存 = 不同 URL = cache miss）
+// app.js — UI assembly: theme / language / controls / conversion pipeline (F-2..F-5 wiring)
+// ?v=424: asset versioning prevents cache skew (SPEC-424; poisoned cache for returning users = different URL = cache miss)
 import { computeGrid, convertCells, colorVarianceScore } from './ascii-core.js?v=424';
 import { renderAscii, sampleImage, previewSample, downloadPng, copyTxt, THEMES } from './render.js?v=424';
 import { t, loadLang, saveLang, applyI18n } from './i18n.js?v=424';
 import { attachInputs } from './input.js?v=424';
 
-const THEME_ID = ['ascii', 'theme'].join('-'); // 动态拼接：防写入管线对 KEY=字面量 形态打掩
+const THEME_ID = ['ascii', 'theme'].join('-'); // built dynamically: prevents the write pipeline from masking the KEY=literal shape
 
 const $ = (id) => document.getElementById(id);
 const els = {
@@ -28,13 +28,13 @@ const state = {
   opts: { autoWidth: true, width: 120, saturation: 1.6, brightness: 1, gamma: 1, colorMode: true },
 };
 
-// ---------- 主题（F-3：切换 + localStorage 持久 + 首访跟随系统） ----------
+// ---------- Theme (F-3: toggle + localStorage persistence + follow system on first visit) ----------
 
 function loadTheme() {
   try {
     const v = localStorage.getItem(THEME_ID);
     if (v === 'dark' || v === 'light') return v;
-  } catch { /* 隐私模式 */ }
+  } catch { /* private mode */ }
   return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 }
 
@@ -44,17 +44,17 @@ function applyTheme() {
   els.themeBtn.textContent = state.theme === 'dark' ? '◐' : '◑';
 }
 
-// ---------- 语言（F-4：切换 + localStorage 持久 + 默认 navigator.language） ----------
+// ---------- Language (F-4: toggle + localStorage persistence + default navigator.language) ----------
 
 function applyLang() {
   applyI18n(document, state.lang);
-  document.title = t(state.lang, 'seoTitle'); // SEO（SPEC-423）：标题跟随语言；静态 <title> 供无 JS 爬虫
+  document.title = t(state.lang, 'seoTitle'); // SEO (SPEC-423): title follows the language; static <title> for JS-less crawlers
   saveLang(state.lang);
   els.langBtn.textContent = state.lang === 'en' ? '中' : 'EN';
   refreshStatus();
 }
 
-// ---------- 状态行 ----------
+// ---------- Status line ----------
 
 function refreshStatus() {
   if (state.errKey) {
@@ -73,7 +73,7 @@ function showError(key) {
   refreshStatus();
 }
 
-// ---------- 转换管线（F-1/F-2） ----------
+// ---------- Conversion pipeline (F-1/F-2) ----------
 
 function renderOnly() {
   try {
@@ -84,7 +84,7 @@ function renderOnly() {
     });
     return true;
   } catch {
-    showError('errTooTall'); // 极端尺寸 canvas 溢出：报错而非静默白屏（T-719 必改 2）
+    showError('errTooTall'); // canvas overflow at extreme sizes: report the error instead of a silent white screen (T-719 must-fix 2)
     return false;
   }
 }
@@ -97,13 +97,13 @@ function process() {
     variance: state.variance,
   });
   const rgba = sampleImage(state.bitmap, W, H);
-  // 单色+深底：亮→密（发光墨水在暗底上密度=亮度）；彩色模式恒纸白底+经典映射（复刻 spike）
+  // monochrome + dark background: bright → dense (density of glowing ink on dark = brightness); color mode always uses paper-white background + classic mapping (replicating the spike)
   const invert = !o.colorMode && (THEMES[state.theme]?.invert ?? false);
   state.result = convertCells(rgba, W, H, {
     saturation: o.saturation, brightness: o.brightness, gamma: o.gamma, invert,
   });
-  if (!renderOnly()) return; // 渲染失败已报错：不刷新输出/计时，保留错误状态行
-  state.lastMs = Math.round(performance.now() - t0); // 取样+转换+渲染计时
+  if (!renderOnly()) return; // render failure already reported: don't refresh output/timing, keep the error status line
+  state.lastMs = Math.round(performance.now() - t0); // sampling + conversion + render timing
   els.art.hidden = false;
   els.placeholder.hidden = true;
   els.widthVal.textContent = String(W);
@@ -144,7 +144,7 @@ function reset() {
   refreshStatus();
 }
 
-// ---------- 控件绑定 ----------
+// ---------- Control bindings ----------
 
 const RANGES = [
   ['widthRange', 'widthVal', 'width', 0],
@@ -181,7 +181,7 @@ function bindControls() {
   els.themeBtn.addEventListener('click', () => {
     state.theme = state.theme === 'dark' ? 'light' : 'dark';
     applyTheme();
-    if (state.result) process(); // 单色字色/invert 随主题重渲染
+    if (state.result) process(); // re-render so monochrome ink color/invert follows the theme
   });
   els.langBtn.addEventListener('click', () => {
     state.lang = state.lang === 'en' ? 'zh' : 'en';
@@ -216,7 +216,7 @@ function init() {
   els.widthRange.disabled = state.opts.autoWidth;
   bindControls();
   attachInputs({ zone: els.dropZone, input: els.fileInput, onFile: loadFile, onError: showError });
-  applyLang(); // 最后：applyI18n 会覆盖 [data-i18n] textContent
+  applyLang(); // last: applyI18n overwrites [data-i18n] textContent
 }
 
 init();
