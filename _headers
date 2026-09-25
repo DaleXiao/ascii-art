@@ -1,4 +1,4 @@
-# CF Pages 响应头（SPEC-424）：全站协商缓存，根治 HTML/CSS/JS 部署版本偏斜
-# no-cache = 每次带 etag 重验证，未变则 304（站仅 7 资源，成本可忽略）
+# CF Pages response headers (SPEC-424): site-wide negotiated caching to eliminate HTML/CSS/JS deployment version skew
+# no-cache = revalidate with etag on every request; 304 when unchanged (only 7 assets on the site, negligible cost)
 /*
   Cache-Control: no-cache
