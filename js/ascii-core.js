@@ -1,36 +1,36 @@
-// ascii-core.js — 纯函数转换核心（无 DOM 依赖，node 可单测）
-// SPEC-420 F-1 · 字符 ramp '@%#*+=-:. '：dense(dark) → sparse(bright)，经典白底序
-// 关键参数来自 2026-09-10 spike（tmp/ascii-convert.mjs，Dale 审美已确认）
+// ascii-core.js — Pure-function conversion core (no DOM dependencies, unit-testable in node)
+// SPEC-420 F-1 · Character ramp '@%#*+=-:. ': dense(dark) → sparse(bright), classic light-background order
+// Key parameters come from the 2026-09-10 spike (tmp/ascii-convert.mjs, aesthetics confirmed by Dale)
 
 export const CHARS = '@%#*+=-:. ';
 
 export const DEFAULTS = {
-  width: 'auto',       // 40–200 或 'auto'（启发式）
-  aspect: 0.5,         // 字符单元格纵横比补偿：H = W × (h/w) × aspect
-  saturation: 1.6,     // 饱和度增强 0–3（围绕亮度 boost）
-  brightness: 1,       // 亮度 0.5–1.5
+  width: 'auto',       // 40–200 or 'auto' (heuristic)
+  aspect: 0.5,         // character cell aspect-ratio compensation: H = W × (h/w) × aspect
+  saturation: 1.6,     // saturation boost 0–3 (around luminance)
+  brightness: 1,       // brightness 0.5–1.5
   gamma: 1,            // gamma 0.5–2
-  maxLum: 190,         // 亮部钳制 lum ≤ 190
-  autoContrast: true,  // 2/98 百分位对比度拉伸
-  invert: false,       // 深底单色模式用（亮→密）
+  maxLum: 190,         // highlight clamp lum ≤ 190
+  autoContrast: true,  // 2/98 percentile contrast stretch
+  invert: false,       // for dark-background monochrome mode (bright → dense)
 };
 
-/** H 上界：极端纵横比时垂直压缩（采样跳行）而非撑爆画布——canvas 高度硬限 65535，超限 getImageData 全 0 / toBlob null（T-719 复审必改 2） */
+/** Upper bound for H: at extreme aspect ratios, compress vertically (skip sampled rows) instead of blowing up the canvas — hard canvas height limit is 65535; beyond it getImageData returns all zeros / toBlob returns null (T-719 review must-fix 2) */
 export const MAX_ROWS = 2000;
 
 export const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 export const clamp01 = (v) => clamp(v, 0, 1);
 
-/** 感知亮度（0–255），权重 0.299/0.587/0.114 */
+/** Perceptual luminance (0–255), weights 0.299/0.587/0.114 */
 export function lumFromRgb(r, g, b) {
   return 0.299 * r + 0.587 * g + 0.114 * b;
 }
 
-// ---------- 自动宽度启发式（F-1：尺寸 + 颜色方差 → W ∈ [60,160]） ----------
+// ---------- Auto-width heuristic (F-1: size + color variance → W ∈ [60,160]) ----------
 
 /**
- * 可辨识度 = 主体/背景分离度 × 输出宽度；大图/复杂图自动取宽。
- * sizeScore：最长边 256px→0，≥2048px→1；variance：colorVarianceScore 0–1。
+ * Legibility = subject/background separation × output width; large or complex images automatically get more width.
+ * sizeScore: longest side 256px→0, ≥2048px→1; variance: colorVarianceScore 0–1.
  */
 export function autoWidth(imgW, imgH, variance = 0.5) {
   const dim = Math.max(imgW, imgH);
@@ -40,8 +40,8 @@ export function autoWidth(imgW, imgH, variance = 0.5) {
 }
 
 /**
- * 归一化颜色方差评分（0–1），输入 RGBA 像素数据（建议先在浏览器降到 ≤64px 采样）。
- * 亮度标准差（细节/对比）+ 平均色度（彩色程度）加权。
+ * Normalized color-variance score (0–1) from RGBA pixel data (downsample to ≤64px in the browser first).
+ * Weighted: luminance std-dev (detail/contrast) + mean chroma (colorfulness).
  */
 export function colorVarianceScore(rgba) {
   const n = rgba.length / 4;
@@ -58,7 +58,7 @@ export function colorVarianceScore(rgba) {
   return clamp01(0.7 * (std / 64) + 0.6 * (chroma / n));
 }
 
-// ---------- 网格计算（F-1：W 40–200，默认 auto，纵横比 0.5 补偿） ----------
+// ---------- Grid computation (F-1: W 40–200, default auto, 0.5 aspect-ratio compensation) ----------
 
 export function computeGrid(imgW, imgH, width = 'auto', opts = {}) {
   const aspect = opts.aspect ?? DEFAULTS.aspect;
@@ -71,15 +71,15 @@ export function computeGrid(imgW, imgH, width = 'auto', opts = {}) {
   return { W, H };
 }
 
-// ---------- 亮度 → 字符（F-1） ----------
+// ---------- Luminance → character (F-1) ----------
 
-/** 归一化亮度 l∈[0,1] → ramp 字符；0（最暗）→'@'，1（最亮）→' '（经典白底序） */
+/** Normalized luminance l∈[0,1] → ramp character; 0 (darkest) → '@', 1 (brightest) → ' ' (classic light-background order) */
 export function charForLum(l) {
   const i = Math.min(CHARS.length - 1, Math.floor(clamp01(l) * CHARS.length));
   return CHARS[i];
 }
 
-/** 2/98 百分位对比度边界；退化（hi-lo<1）时回退全域 0–255 */
+/** 2/98 percentile contrast bounds; falls back to the full 0–255 range when degenerate (hi-lo<1) */
 export function percentileBounds(lums) {
   const sorted = Float64Array.from(lums).sort();
   const n = sorted.length;
@@ -89,14 +89,14 @@ export function percentileBounds(lums) {
   return hi - lo >= 1 ? { lo, hi } : { lo: 0, hi: 255 };
 }
 
-/** 亮度调节：先 brightness 乘，再 gamma 幂，均钳 [0,1] */
+/** Luminance adjustment: multiply by brightness first, then gamma power; both clamped to [0,1] */
 export function gradeLum(l, brightness = 1, gamma = 1) {
   return clamp01(Math.pow(clamp01(l * brightness), gamma));
 }
 
-// ---------- 颜色处理（F-1：饱和增强 + 亮部钳制） ----------
+// ---------- Color processing (F-1: saturation boost + highlight clamp) ----------
 
-/** 围绕亮度做饱和度 boost（amount=1 恒等；灰阶 r=g=b 恒等） */
+/** Saturation boost around luminance (amount=1 is identity; grayscale r=g=b is identity) */
 export function boostSaturation(r, g, b, amount) {
   const lum = lumFromRgb(r, g, b);
   return [
@@ -106,7 +106,7 @@ export function boostSaturation(r, g, b, amount) {
   ];
 }
 
-/** 亮部钳制：合成亮度 > maxLum 时整体等比压暗（保持色相） */
+/** Highlight clamp: when composite luminance > maxLum, scale everything down proportionally (preserving hue) */
 export function clampHighlight(r, g, b, maxLum = 190) {
   const lum = lumFromRgb(r, g, b);
   if (lum > maxLum && lum > 0) {
@@ -116,7 +116,7 @@ export function clampHighlight(r, g, b, maxLum = 190) {
   return [r, g, b];
 }
 
-/** 单格取色：饱和增强 → 亮部钳制 → 取整钳 [0,255] */
+/** Per-cell color pick: saturation boost → highlight clamp → round and clamp to [0,255] */
 export function cellColor(r, g, b, { saturation = 1.6, maxLum = 190 } = {}) {
   let [rr, gg, bb] = boostSaturation(r, g, b, saturation);
   [rr, gg, bb] = clampHighlight(rr, gg, bb, maxLum);
@@ -127,13 +127,13 @@ export function cellColor(r, g, b, { saturation = 1.6, maxLum = 190 } = {}) {
   };
 }
 
-// ---------- 主管线 ----------
+// ---------- Main pipeline ----------
 
 /**
- * 已降采样到每格一像素的 RGBA 数据 → 字符网格 + 每格颜色。
- * @param {Uint8Array|Uint8ClampedArray} rgba 长度 W*H*4
+ * RGBA data already downsampled to one pixel per cell → character grid + per-cell colors.
+ * @param {Uint8Array|Uint8ClampedArray} rgba length W*H*4
  * @returns {{W,H,chars:string[],colors:Uint8Array,lo:number,hi:number}}
- *   chars: H 行字符串（每行 W 字符）；colors: W*H*3（RGB）
+ *   chars: H strings (W characters each); colors: W*H*3 (RGB)
  */
 export function convertCells(rgba, W, H, opts = {}) {
   const o = { ...DEFAULTS, ...opts };
@@ -168,7 +168,7 @@ export function convertCells(rgba, W, H, opts = {}) {
   return { W, H, chars, colors, lo, hi };
 }
 
-/** 纯文本字符画（经典白底序，亮→稀疏） */
+/** Plain-text ASCII art (classic light-background order, bright → sparse) */
 export function resultToTxt(result) {
   return result.chars.join('\n') + '\n';
 }
